@@ -1,0 +1,197 @@
+\documentclass[11pt,a4paper]{report}
+
+% ---------------------------------------------------------------- layout
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{needspace}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric,backgrounds}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepgfplotslibrary{groupplots,statistics}
+\pgfplotsset{compat=1.18}
+\usepackage[colorlinks=true,linkcolor=blue!70!black,citecolor=green!45!black,urlcolor=blue!70!black]{hyperref}
+
+\setlist{itemsep=2pt,topsep=4pt}
+
+% ---------------------------------------------------------------- code listings
+\definecolor{codebg}{HTML}{F2F1E9}
+\definecolor{codekw}{HTML}{C7254E}
+\definecolor{codestr}{HTML}{9C27B0}
+\definecolor{codecom}{HTML}{3A8A3A}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekw},
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,
+  numbers=left, numberstyle=\tiny\color{gray}, numbersep=6pt,
+  xleftmargin=1.5em, framexleftmargin=1.5em, frame=none,
+  columns=fullflexible, keepspaces=true, showstringspaces=false,
+  breaklines=true, aboveskip=8pt, belowskip=8pt,
+  escapeinside={(*@}{@*)}
+}
+
+% ---------------------------------------------------------------- boxes
+\newtcolorbox{notebox}{enhanced, colback=gray!6, colframe=gray!70!black,
+  boxrule=0.5pt, arc=2pt, title=Note, fonttitle=\small,
+  left=6pt, right=6pt, top=4pt, bottom=4pt}
+\newtcolorbox{defbox}[1]{enhanced, colback=blue!3, colframe=blue!45!black,
+  boxrule=0.5pt, arc=2pt, title={#1}, fonttitle=\small\bfseries,
+  left=6pt, right=6pt, top=4pt, bottom=4pt}
+
+% ---------------------------------------------------------------- chart colours and styles
+\definecolor{cstack}{HTML}{1BAF7A}
+\definecolor{cstackdark}{HTML}{0F6E56}
+\definecolor{cheap}{HTML}{2A78D6}
+\definecolor{csize}{HTML}{EB6834}
+\definecolor{cclass}{HTML}{6250D6}
+\definecolor{celem}{HTML}{EDA100}
+\definecolor{cunknown}{HTML}{9A9890}
+\definecolor{inkc}{HTML}{52514E}
+\definecolor{mutedc}{HTML}{898781}
+\definecolor{gridc}{HTML}{E1E0D9}
+\definecolor{basec}{HTML}{C3C2B7}
+
+\input{data/macros.tex}
+\pgfplotstableread[col sep=semicolon]{data/bench.csv}\benchtab
+
+\pgfplotsset{
+  base/.style={
+    axis x line*=bottom, axis y line*=left,
+    y axis line style={draw=none}, x axis line style={draw=basec},
+    major tick style={draw=none},
+    xmajorgrids, grid style={draw=gridc, line width=0.4pt},
+    y dir=reverse,
+    yticklabel style={font=\footnotesize, text=inkc},
+    xticklabel style={font=\scriptsize, text=mutedc, /pgf/number format/1000 sep={}},
+    xlabel style={font=\footnotesize, text=mutedc},
+    title style={font=\small, align=left, anchor=south west, at={(0,1)}, yshift=1pt},
+    legend style={draw=none, fill=none, font=\footnotesize, text=inkc, legend cell align=left,
+                  /tikz/every even column/.append style={column sep=8pt}},
+    legend image code/.code={\fill[##1] (0cm,-0.07cm) rectangle (0.22cm,0.13cm);},
+    scaled x ticks=false,
+  },
+  benchrows/.style={base, clip=false, yticklabels from table={\benchtab}{name}, enlarge y limits={abs=0.6}},
+  seg/.style={fill=#1, draw=white, line width=0.6pt},
+  inseg/.style={
+    point meta=explicit symbolic,
+    nodes near coords={\pgfmathtruncatemacro\showlab{\pgfplotspointmeta>=10}%
+      \ifnum\showlab=1 \pgfmathprintnumber[fixed,precision=0]{\pgfplotspointmeta}\%\fi},
+    nodes near coords style={anchor=east, font=\scriptsize, text=white, inner sep=2pt},
+  },
+  endlab/.style={
+    point meta=explicit symbolic,
+    nodes near coords={\pgfplotspointmeta},
+    nodes near coords style={anchor=west, font=\scriptsize, text=inkc, inner sep=2pt},
+  },
+}
+
+% ---------------------------------------------------------------- tikz styles
+\tikzset{
+  blk/.style={draw, rounded corners=2pt, align=center, font=\small, inner sep=5pt},
+  obj/.style={draw, minimum width=0.75cm, minimum height=0.5cm, font=\small, inner sep=1pt, fill=white},
+  var/.style={draw, circle, minimum size=0.55cm, inner sep=0pt, font=\small},
+  arr/.style={-{Stealth[length=5pt]}, thick},
+}
+
+\newcommand{\cv}[3]{\langle #1,\ #2,\ #3\rangle}
+
+\renewcommand{\bibname}{References}
+\begin{document}
+
+% ================================================================ title page
+\begin{titlepage}
+  \centering
+  \vspace*{1.5cm}
+  {\LARGE\bfseries Memory Optimization in\\[4pt] Object-Oriented Programming Languages\par}
+  \vspace{1.2cm}
+  {\large CS-777 Report\par}
+  \vspace{1.2cm}
+  {\large Ashutosh Sharma\par}
+  \vspace{4pt}
+  {\large 26M2107\par}
+  \vspace{1cm}
+  {\normalsize Guide: Prof.\ Manas Thakur\par}
+  \vfill
+  {\large 23\textsuperscript{rd} November, 2026\par}
+  \vspace{1cm}
+  \includegraphics[width=4.2cm]{figures/iitb-logo.png}\par
+  \vspace{1cm}
+  {\large Department of Computer Science and Engineering\par}
+  {\large Indian Institute of Technology Bombay\par}
+  \vspace*{0.5cm}
+\end{titlepage}
+
+\pagenumbering{arabic}
+\tableofcontents
+\clearpage
+
+% ================================================================ abstract
+\setcounter{page}{1}
+\addcontentsline{toc}{section}{Abstract}
+\begin{abstract}
+    Java researchers have long struggled with a fundamental trade-off: whether to perform precise analyses within the JIT compiler or delegate them to the static compilation stage and leverage their results at runtime. \\
+    \\
+    Over the years, several efforts have been made to improve Escape Analysis (EA), enabling more objects to be allocated on the stack rather than the heap. However, much of this work has primarily focused on regular objects, leaving another significant category of Java objects, like arrays, relatively unexplored \\
+    \\
+    Arrays introduce an additional set of constraints that make them particularly challenging candidates for stack allocation. In this report, we examine these constraints, investigate the limitations they impose on existing Escape Analysis implementations, and outline potential directions for addressing some of these challenges as part of our future work.
+\end{abstract}
+\clearpage
+
+\input{chapters/01-introduction}
+\input{chapters/02-literature}
+\input{chapters/03-toolbox}
+\input{chapters/04-experiments}
+\input{chapters/05-conclusion}
+
+% ================================================================ references
+\begin{thebibliography}{9}
+\addcontentsline{toc}{chapter}{References}
+
+\bibitem{anand2024optimistic}
+Aditya Anand, Solai Adithya, Swapnil Rustagi, Priyam Seth, Vijay Sundaresan, Daryl Maier,
+V.~Krishna Nandivada, and Manas Thakur.
+Optimistic stack allocation and dynamic heapification for managed runtimes.
+\emph{Proc.\ ACM Program.\ Lang.}, 8(PLDI), June 2024.
+\url{https://doi.org/10.1145/3656389}.
+
+\bibitem{blackburn2006dacapo}
+Stephen~M. Blackburn, Robin Garner, Chris Hoffmann, Asjad~M. Khang, Kathryn~S. McKinley,
+Rotem Bentzur, Amer Diwan, Daniel Feinberg, Daniel Frampton, Samuel~Z. Guyer, et~al.
+The DaCapo benchmarks: Java benchmarking development and analysis.
+In \emph{Proceedings of the 21st Annual ACM SIGPLAN Conference on Object-Oriented Programming
+Systems, Languages, and Applications}, OOPSLA '06. ACM, 2006.
+
+\bibitem{openj9}
+Eclipse OpenJ9. \url{https://eclipse.dev/openj9/}. Accessed: 2026-11-23.
+
+\bibitem{specjvm2008}
+SPECjvm2008. \url{https://www.spec.org/jvm2008/}. Accessed: 2026-11-23.
+
+\bibitem{thakur2019pye}
+Manas Thakur and V.~Krishna Nandivada.
+PYE: A framework for precise-yet-efficient just-in-time analyses for Java programs.
+\emph{ACM Transactions on Programming Languages and Systems}, 41(3), July 2019.
+
+\bibitem{vallee2010soot}
+Raja Vall\'ee-Rai, Phong Co, Etienne Gagnon, Laurie Hendren, Patrick Lam, and Vijay Sundaresan.
+Soot: a Java bytecode optimization framework.
+In \emph{CASCON First Decade High Impact Papers}, CASCON '10, pages 214--224, USA, 2010. IBM Corp.
+
+\end{thebibliography}
+
+\end{document}

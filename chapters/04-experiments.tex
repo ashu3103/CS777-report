@@ -1,0 +1,345 @@
+\chapter{Experiments}
+\label{ch:experiments}
+
+This chapter presents two experiments on the OpenJ9 JIT compiler. The first asks whether the
+fixed stack-frame budget for stack-allocated objects is a real constraint in practice. The
+second asks why so few arrays are stack allocated.
+
+\section{Investigating Stack-Frame Utilization}
+
+OpenJ9 limits the stack-frame space available for stack-allocated objects to a fixed threshold
+of \textbf{3000 bytes per method}. When the total size of all eligible candidates exceeds this
+limit, escape analysis must remove some of them from the candidate list, and those objects are
+allocated on the heap instead. The current implementation decides which candidates to remove
+using object size alone, starting with the largest objects (Algorithm~\ref{alg:evict}).
+
+\begin{algorithm}[htbp]
+  \caption{Candidate eviction in OpenJ9 (size-based)}
+  \label{alg:evict}
+  \SetKwProg{Proc}{Procedure}{}{}
+  \Proc{\textsc{EvictCandidates}(candidates, MAX)}{
+    $\mathit{total} \leftarrow$ size of all candidates on the stack\;
+    \While{$\mathit{total} > \mathit{MAX}$}{
+      $c \leftarrow$ largest contiguous candidate \tcp*{size only}
+      \If{no such $c$}{
+        $c \leftarrow$ largest non-contiguous candidate\;
+      }
+      $\mathit{total} \leftarrow \mathit{total} - \mathit{size}(c)$\;
+      mark $c$ as heap-allocated\;
+    }
+  }
+\end{algorithm}
+
+This raises two questions:
+\begin{itemize}
+  \item Is object size alone a good criterion for choosing which objects to remove?
+  \item Does the current heuristic lead to suboptimal stack-frame utilization or suboptimal
+        performance on real-world workloads?
+\end{itemize}
+
+\subsection{Candidate Eviction: An Example}
+
+Listing~\ref{lst:evict} shows a method with three stack-allocation candidates. $O_1$ is used in
+a hot loop, while $O_2$ and $O_3$ are allocated only in a block that runs when \texttt{n} is
+zero.
+
+\needspace{15\baselineskip}
+\begin{lstlisting}[language=Java, caption={A method whose candidates exceed the budget.}, label={lst:evict}]
+double work(int n) {
+  Vec acc = new Vec();          // O1, 1600 B
+  for (int i = 0; i < n; i++) {
+    acc.add(i);                 // hot
+  }
+  if (n == 0) {                 // cold block
+    Cfg a = new Cfg();          // O2, 1000 B
+    Log b = new Log();          // O3,  800 B
+    a.use(b);
+  }
+  return acc.sum();
+}
+\end{lstlisting}
+
+Together the candidates need 3400\,B against a budget of 3000\,B, so at least 400\,B must be
+evicted. Table~\ref{tab:evict} compares the current rule with a hot-path-aware rule that evicts
+the coldest candidate first, and the smallest among candidates that are equally cold.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    Rule & Evicts & Stays on stack & Stack space used \\
+    \midrule
+    Largest-first (current) & $O_1$ & $O_2$, $O_3$ & 1800\,B \\
+    Hot-path aware          & $O_3$ & $O_1$, $O_2$ & 2600\,B \\
+    \bottomrule
+  \end{tabular}
+  \caption{Effect of two eviction rules on the method in Listing~\ref{lst:evict}.}
+  \label{tab:evict}
+\end{table}
+
+The size-based rule evicts $O_1$, the one object that is used on the hot path, and keeps two
+objects that are almost never allocated. A rule that takes execution frequency into account keeps
+the hot object on the stack and also uses more of the budget. Whether this matters in practice
+depends on how often real methods actually exceed the budget, which is what our first experiment
+measures.
+
+\section{Experiment 1: Stack-Frame Utilization}
+
+\paragraph{Objective.} Find out whether real-world programs ever need more stack space for
+stack-allocated objects than the budget allows.
+
+\paragraph{What we measure.} For every compiled method:
+\begin{itemize}
+  \item how often the stack-allocation candidates exceed the budget ($\mathit{totalSize} >
+        \mathit{MAX}$); and
+  \item by how much they exceed it, or how much of the budget is left unused (the
+        \emph{deficit}, $\mathit{totalSize} - \mathit{MAX}$).
+\end{itemize}
+
+\paragraph{How.} Two static debug counters per method, updated once, when that method is
+compiled. From the deficit we compute each method's \emph{utilization}: the share of the
+3000\,B budget actually taken by its stack-allocated objects.
+
+\paragraph{Workload.} The DaCapo 9.12-MR1-bach benchmark suite~\cite{blackburn2006dacapo}:
+large, varied Java applications whose access patterns are close to those of real-world software.
+
+\subsection{Results}
+
+Figure~\ref{fig:util} summarizes the utilization of every compiled method, per benchmark.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=0.95\textwidth, height=6cm,
+    boxplot/draw direction=y,
+    ymin=-0.3, ymax=7,
+    xtick={1,2,3,4,5,6,7},
+    xticklabels={h2, sunflow, eclipse, fop, jython, lusearch, xalan},
+    x tick label style={font=\footnotesize}, y tick label style={font=\footnotesize},
+    ylabel={\footnotesize Utilization (\% of 3000\,B)},
+    ymajorgrids, grid style={gray!25},
+    boxplot={box extend=0.5},
+    every boxplot/.style={fill=blue!25, draw=blue!60!black, solid, line width=0.8pt},
+    extra y ticks={0}, extra y tick style={grid=none},
+]
+\addplot+[boxplot prepared={lower whisker=0.0, lower quartile=0.0, median=0.0,
+          upper quartile=0.0, upper whisker=0.0}, mark=o, solid]
+          coordinates {(1,0.8) (1,1.6) (1,2.13) (1,2.4)};
+\addplot+[boxplot prepared={lower whisker=0.0, lower quartile=0.0, median=0.3,
+          upper quartile=0.4, upper whisker=0.4}, mark=o, solid]
+          coordinates {(2,0.8) (2,1.07) (2,6.4)};
+\addplot+[boxplot prepared={lower whisker=0.0, lower quartile=0.0, median=0.4,
+          upper quartile=0.8, upper whisker=0.8}, mark=o, solid]
+          coordinates {(3,4.27)};
+\addplot+[boxplot prepared={lower whisker=0.0, lower quartile=0.0, median=0.0,
+          upper quartile=2.13, upper whisker=4.26}, mark=o, solid]
+          coordinates {};
+\addplot+[boxplot prepared={lower whisker=0.0, lower quartile=0.0, median=0.2,
+          upper quartile=0.4, upper whisker=0.4}, mark=o, solid]
+          coordinates {(5,1.07)};
+\addplot+[boxplot prepared={lower whisker=0.0, lower quartile=0.0, median=0.0,
+          upper quartile=0.5, upper whisker=1.06}, mark=o, solid]
+          coordinates {};
+\addplot+[boxplot prepared={lower whisker=0.0, lower quartile=0.0, median=0.0,
+          upper quartile=0.4, upper whisker=0.4}, mark=o, solid]
+          coordinates {(7,1.6) (7,4.27)};
+\end{axis}
+\end{tikzpicture}
+\caption{Stack-frame utilization per compiled method. Each point is one method: the share of its
+         3000\,B budget used by stack-allocated objects. Box: middle 50\% of methods; line:
+         median; whiskers: typical range; circles: outlier methods.}
+\label{fig:util}
+\end{figure}
+
+The budget is far from being a constraint. The median method uses at most 0.4\% of it (12\,B)
+in every benchmark, and in h2, fop, lusearch and xalan at least half of the methods use none of
+it at all; in h2 the whole box sits at zero, so at least three quarters of its methods use no
+stack space. The largest value observed across all benchmarks is 6.4\% (192\,B), in sunflow. In
+other words, no compiled method came close to the 3000\,B limit, and the eviction heuristic of
+Algorithm~\ref{alg:evict} did not need to run for any method we observed.
+
+\begin{notebox}
+The question raised by the eviction example is therefore moot for this suite: a better eviction
+rule cannot help when nothing is evicted. The more pressing problem is the opposite one: stack
+frames stay \emph{under-utilized}, because few objects are admitted as candidates in the first
+place.
+\end{notebox}
+
+\section{Array Stack-Allocation Opportunities}
+
+Stack frames stay under-utilized in most methods, yet arrays are admitted to the candidate list
+only under strict conditions, and arrays that fail these checks go to the heap even when they
+never escape. This leads to two questions:
+\begin{itemize}
+  \item Why are arrays most often rejected from the candidate list?
+  \item Can we be more aggressive with arrays?
+\end{itemize}
+
+\subsection{Eligibility of Arrays}
+
+An array allocation is rejected as a stack-allocation candidate for one of two families of
+reasons.
+
+\paragraph{Element class unresolved or unknown.}
+\begin{itemize}
+  \item \emph{Not known at compile time}: the element class is only decided at run time, for
+        example when the array is created reflectively.
+  \item \emph{Not resolved}: the element class is known but has not been resolved yet, for
+        example because the allocation sits on a path the interpreter never executed before the
+        method was compiled.
+\end{itemize}
+Primitive arrays always pass these checks: their element types are known and loaded at VM
+start-up.
+
+\paragraph{Array size.}
+\begin{itemize}
+  \item \emph{Zero length}.
+  \item \emph{Not a constant}: the length is only decided at run time.
+  \item \emph{Too large}: the length is above a threshold.
+\end{itemize}
+These checks exist because a stack frame needs a size fixed at compile time, and a single array
+must not use up the whole budget. The question, then, is which of these constraints rejects the
+most arrays in real programs.
+
+\section{Experiment 2: Why Arrays Are Rejected}
+
+\paragraph{Objective.} Find the reasons arrays do not make it into the candidate list.
+
+\paragraph{What we measure.}
+\begin{itemize}
+  \item the percentage of candidate arrays that are actually stack allocated; and
+  \item the number of array allocations rejected, for each rejection reason.
+\end{itemize}
+
+\paragraph{How.} We added an enumeration listing every possible rejection reason, and one static
+debug counter per reason, incremented at the point where the array is rejected. Counters are
+organised hierarchically under \texttt{ArrayAlloc}; Listing~\ref{lst:h2counters} shows the raw
+output for h2. The reasons map to the labels used in the rest of this section as follows:
+\texttt{ArraySizeNotConst} is \emph{dynamic size}, \texttt{ClassUnresolved} is \emph{class
+unresolved}, \texttt{ElementClassNotLoadaddr} is \emph{element class not known}, and every other
+rejection is counted as \emph{unknown}.
+
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\scriptsize, caption={Static debug counters for h2.}, label={lst:h2counters}]
+ArrayAlloc                                              |  1195
+ArrayAlloc/ArrayCandidateFailed                         |   471 |  39.41%
+ArrayAlloc/ArrayCandidateFailed/ArraySizeNotConst       |   413 |  34.56% |  87.69%
+ArrayAlloc/ArrayCandidateFailed/ClassUnresolved         |    31 |   2.59% |   6.58%
+ArrayAlloc/ArrayCandidateFailed/ElementClassNotLoadaddr |     2 |   0.17% |   0.42%
+ArrayAlloc/ArrayCandidateFailed/Unknown                 |    25 |   2.09% |   5.31%
+ArrayAlloc/ArrayCandidateOk                             |   718 |  60.08%
+ArrayAlloc/StackAllocated                               |     6 |   0.50%
+\end{lstlisting}
+
+\paragraph{Workload.} The DaCapo 9.12-MR1-bach benchmark suite, with 20 iterations per
+benchmark. Only compiled methods are counted, so the runs must be long enough for the JIT
+compiler to warm up.
+
+\subsection{Results}
+
+Table~\ref{tab:arrays} lists the raw counts. Throughout, the number of array allocations
+analysed in a benchmark is the sum of the rejected arrays and the candidate arrays, and the
+stack-allocated arrays are counted as a subset of the candidates.\footnote{In every benchmark
+the top-level \texttt{ArrayAlloc} counter equals \emph{rejected + candidates + stack allocated}
+exactly (for h2, $471 + 718 + 6 = 1195$), which suggests that \texttt{StackAllocated} may be
+counted separately from \texttt{ArrayCandidateOk}. If so, the stack-allocation rates below
+would change only in the second decimal place (for h2, $6/724$ instead of $6/718$).}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{@{}lrrrrrrrr@{}}
+    \toprule
+    & & \multicolumn{2}{c}{Candidates} & \multicolumn{5}{c}{Rejected} \\
+    \cmidrule(lr){3-4} \cmidrule(l){5-9}
+    Benchmark & Analysed & Total & Stack & Total & Dyn.\ size & Class unres. & Elem.\ class & Unknown \\
+    \midrule
+    eclipse  & 2{,}689 & 2{,}163 & 6 & 526 & 392 & 85 & 3 & 46 \\
+    fop      & 965     & 730     & 4 & 235 & 180 & 39 & 2 & 14 \\
+    h2       & 1{,}189 & 718     & 6 & 471 & 413 & 31 & 2 & 25 \\
+    jython   & 920     & 691     & 2 & 229 & 164 & 45 & 2 & 18 \\
+    lusearch & 762     & 483     & 0 & 279 & 240 & 27 & 2 & 10 \\
+    sunflow  & 1{,}269 & 895     & 9 & 374 & 304 & 49 & 3 & 18 \\
+    xalan    & 1{,}129 & 733     & 4 & 396 & 282 & 71 & 2 & 41 \\
+    \midrule
+    All      & 8{,}923 & 6{,}413 & 31 & 2{,}510 & 1{,}975 & 347 & 16 & 172 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Array allocations in compiled methods of the DaCapo 9.12-MR1 benchmarks.}
+  \label{tab:arrays}
+\end{table}
+
+\paragraph{Candidates are rarely stack allocated.} Most array allocations, \CandRate\% overall,
+do pass the candidacy checks. Yet very few of these candidates end up on the stack
+(Figure~\ref{fig:stackarrays}): across all benchmarks only \StackCount{} of \CandCount{}
+candidate arrays (\StackRateOfCand\%) are stack allocated, and lusearch stack-allocates none.
+Passing the candidacy checks is therefore far from sufficient; the arrays are lost at a later
+stage of escape analysis.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{groupplot}[
+        group style={group size=2 by 1, horizontal sep=2.0cm, yticklabels at=edge left},
+        benchrows, benchyticks, height=6.2cm, /pgf/bar width=8pt, xmin=0]
+
+      \nextgroupplot[xbar stacked, width=7.4cm, xmax=\OkXmax,
+                     title={Candidate arrays (count)},
+                     legend columns=2, legend style={at={(1.15,1.18)}, anchor=south}]
+      \addplot[seg=cheap] table[x=okheap, y=ypos]{\benchtab};
+      \addplot[seg=cstack, endlab] table[x=okstack, y=ypos, meta=oklab]{\benchtab};
+      \legend{Not stack allocated (heap), Stack allocated}
+
+      \nextgroupplot[xbar, /pgf/bar shift=0pt, width=6.6cm, xmax=\StackXmax,
+                     title={\% of candidates stack allocated}]
+      \addplot[fill=cstack, draw=none, endlab,
+               restrict expr to domain={\coordindex}{0:\LastBenchIdx}]
+        table[x=stackpct, y=ypos, meta=stacklab]{\benchtab};
+      \addplot[fill=cstackdark, draw=none, endlab,
+               restrict expr to domain={\coordindex}{\AllIdx:\AllIdx}]
+        table[x=stackpct, y=ypos, meta=stacklab]{\benchtab};
+    \end{groupplot}
+  \end{tikzpicture}
+  \caption{Stack allocation of candidate arrays. Left: candidate arrays per benchmark, split into
+           heap and stack allocated (the stack-allocated part is too small to be visible). Right:
+           the share of candidates that is stack allocated.}
+  \label{fig:stackarrays}
+\end{figure}
+
+\paragraph{Dynamic size dominates the rejections.} Figure~\ref{fig:reasons} breaks the rejected
+arrays down by reason. A size that is not a compile-time constant is by far the most common
+reason, accounting for \TopReasonShare\% of all rejections (1{,}975 of \FailedCount{}), and for
+between 71\% and 88\% in every individual benchmark. An unresolved element class is a distant
+second at 13.8\% overall (6.6\% to 19.7\% per benchmark). Arrays whose element class is not
+known at compile time are rare (16 in total), consistent with reflective array creation being
+uncommon in hot code.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[benchrows, benchyticks, xbar stacked, /pgf/bar width=8pt,
+                 width=0.86\textwidth, height=6.4cm, xmin=0, xmax=100,
+                 xlabel={\% of rejected array allocations},
+                 legend columns=4, legend style={at={(0.5,1.03)}, anchor=south}]
+      \addplot[seg=csize,    inseg] table[x=p_size,    y=ypos, meta=p_size]{\benchtab};
+      \addplot[seg=cclass,   inseg] table[x=p_class,   y=ypos, meta=p_class]{\benchtab};
+      \addplot[seg=celem,    inseg] table[x=p_elem,    y=ypos, meta=p_elem]{\benchtab};
+      \addplot[seg=cunknown, inseg] table[x=p_unknown, y=ypos, meta=p_unknown]{\benchtab};
+      \addplot[draw=none, fill=none, forget plot, endlab]
+        table[x expr=0.001, y=ypos, meta=failedlab]{\benchtab};
+      \legend{Dynamic size, Class unresolved, Element class not known, Unknown}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Reasons why array allocations are rejected as stack-allocation candidates; $n$ is the
+           number of rejected arrays in each benchmark.}
+  \label{fig:reasons}
+\end{figure}
+
+\subsection{Discussion}
+
+The two experiments point in the same direction. The per-method budget is almost never the
+limiting factor; what limits stack allocation of arrays is, first, that 28\% of all array allocations
+are rejected as candidates, mostly because their size is not a compile-time
+constant, and second, that almost none of the arrays that \emph{are} candidates end up on the
+stack. Both gaps are targets for the research directions in the next chapter.

@@ -1,0 +1,42 @@
+\chapter{Conclusion and Future Work}
+\label{ch:conclusion}
+
+In this report we studied stack allocation of objects in Java, an optimization that reduces both
+the access cost of objects and the load on the garbage collector. We surveyed two staged
+static\,+\,JIT approaches that make the JIT compiler's escape analysis more precise without
+making it slower: PYE, whose conditional values let a static analysis summarize methods despite
+missing library code, and optimistic stack allocation with dynamic heapification, which acts on
+static escape results at run time and repairs the cases where dynamic features such as class
+loading invalidate them. The latter reports a 71\% increase in stack allocations, a 5.3\%
+reduction in GC time and an 8.8\% reduction in execution time.
+
+We then used OpenJ9's debug counters to look at how stack allocation behaves on the DaCapo
+benchmarks. The 3000\,B per-method budget for stack-allocated objects is far from exhausted: no
+compiled method used more than 6.4\% of it, so the size-based eviction heuristic never came into
+play. Arrays, on the other hand, rarely reach the stack. Only \StackRateOfCand\% of candidate
+arrays are stack allocated, and \TopReasonShare\% of the arrays rejected as candidates are
+rejected because their size is not a compile-time constant.
+
+\section{Future Work}
+
+These observations suggest the following research directions.
+
+\paragraph{Arrays of dynamic size (\TopReasonShare\% of rejections).}
+\begin{itemize}
+  \item Use profiling information to find arrays whose size turns out to be constant, or bounded,
+        at run time, and reserve stack-frame space for them. A method is typically recompiled
+        several times as it gets hotter, so profile data collected during earlier executions is
+        available to later, more optimized compilations.
+  \item Add heapification checks wherever such an array may be reallocated, so that the program
+        stays correct when a run-time size does not fit the reserved space.
+  \item Statically identify arrays that are never reallocated, and skip the heapification checks
+        for them.
+\end{itemize}
+
+\paragraph{Large arrays.} Split large arrays into chunks in the style of arraylets (a spine that
+points to fixed-size leaves), so that the chunks fit into the stack-frame budget. The trade-off is
+one extra indirection on every element access.
+
+\paragraph{The candidate-to-stack gap.} Most candidate arrays still end up on the heap. Finding
+out where in escape analysis they are lost, and why, may well be the larger opportunity, and it
+is a prerequisite for knowing how much the two directions above can gain.

@@ -1,0 +1,76 @@
+\chapter{Our Toolbox}
+\label{ch:toolbox}
+
+This chapter describes the two tools we rely on: the Soot framework for static analysis of Java
+bytecode, and OpenJ9's debug counters for measuring what the JIT compiler does.
+
+\section{Soot}
+
+Soot~\cite{vallee2010soot} is a framework for analysing and transforming Java bytecode. It lifts
+bytecode into \emph{Jimple}, a typed three-address intermediate representation, performs
+analyses and optimizations on Jimple, and writes the optimized program back as bytecode. The
+static escape analysis used by optimistic stack allocation~\cite{anand2024optimistic} and the
+static half of PYE~\cite{thakur2019pye} are both implemented in Soot.
+
+\paragraph{Data-flow analysis framework.} Soot provides a generic data-flow analysis framework:
+\begin{itemize}
+  \item it is template driven: the analysis writer supplies the flow set, the flow functions, the
+        merge function and the direction (forward or backward);
+  \item Soot then computes the fixed point itself, using worklists; and
+  \item it provides further utilities such as def-use chains, points-to analysis and call-graph
+        construction.
+\end{itemize}
+
+\subsection{Why a Three-Address Code?}
+
+Java bytecode is a stack-based instruction set: most instructions take their operands from an
+implicit operand stack and push their results back onto it. This hides the data flow.
+Table~\ref{tab:tac} shows the bytecode of a small method that creates a \texttt{Point} and
+returns the sum of its coordinates, the state of the operand stack after each instruction, and
+the corresponding three-address code (TAC).
+
+In bytecode the operands are implicit, so to find out what \texttt{iadd} adds, or which
+\texttt{new} reaches the local \texttt{p}, an analysis must simulate the operand stack. In TAC
+every statement performs one operation on explicit operands, so the data flow can be read
+directly. This is why Soot's analyses, including escape analysis, work on Jimple rather than on
+bytecode.
+
+\section{OpenJ9 Debug Counters}
+
+To understand what the JIT compiler does on real programs, we use OpenJ9's \emph{debug counters},
+a utility for counting arbitrary events inside the JIT compiler. There are two kinds:
+\begin{itemize}
+  \item \textbf{Static} counters are incremented at compile time; nothing is added to the
+        generated code. They count compile-time events, such as how many allocation sites were
+        rejected for a given reason.
+  \item \textbf{Dynamic} counters insert counter increments into the generated code, so they
+        count how often an event happens at run time.
+\end{itemize}
+
+Counter names are hierarchical: a `\texttt{/}' in a name works like a slash in a file path and
+expresses containment. When the counters are printed, each parent counter shows the total of its
+children, and each child also shows its percentage of that parent. Listing~\ref{lst:dbg} and
+Table~\ref{tab:dbg} show an example.
+
+\begin{lstlisting}[language=C++, caption={Counting inlined and non-inlined call sites.}, label={lst:dbg}]
+prependDebugCounter("callSites/inlined", tt);
+...
+prependDebugCounter("callSites/notInlined", tt);
+\end{lstlisting}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}rlrr@{}}
+    \toprule
+    & Counter & Count & \% \\
+    \midrule
+    1: & \texttt{callSites}             & 10000 & -- \\
+    2: & \texttt{callSites/inlined}     & 8000  & 80.00\% \\
+    3: & \texttt{callSites/notInlined}  & 2000  & 20.00\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Output produced by the counters in Listing~\ref{lst:dbg}.}
+  \label{tab:dbg}
+\end{table}
+
+Both experiments in Chapter~\ref{ch:experiments} use static debug counters.

@@ -1,0 +1,124 @@
+\chapter{Introduction}
+
+Managed object-oriented languages such as Java free the programmer from manual memory
+management: objects are created with \texttt{new} and are reclaimed automatically once they
+are no longer reachable. This convenience has a price. Every object lives on a garbage-collected
+heap, every access to it goes through a reference, and the runtime must periodically stop or
+slow down the program to collect garbage. A long line of work has therefore tried to move
+short-lived objects off the heap and onto the call stack, where they are cheap to allocate,
+cheap to access, and disappear as soon as the method that created them returns.
+
+This report studies that optimization, \emph{stack allocation}, in the context of the Eclipse
+OpenJ9 Java virtual machine~\cite{openj9}. In this chapter we first describe how Java programs
+are executed and how memory is managed, then explain how escape analysis enables stack
+allocation, and finally discuss why getting a precise escape analysis is hard both inside a JIT
+compiler and in a static compiler.
+
+\section{Java Execution Pipeline}
+
+Java programs are executed in two stages (Figure~\ref{fig:pipeline}). In the \emph{static}
+stage, the \texttt{javac} compiler translates source code into platform-independent
+bytecode, stored in \texttt{.class} files. In the \emph{dynamic} stage, the Java virtual machine
+(JVM) loads this bytecode on the target machine and executes it. Every method starts in the
+interpreter; methods that are invoked often enough are handed to the just-in-time (JIT) compiler,
+which translates them into optimized machine code. From then on, calls to that method run the
+compiled code instead of the interpreter, which is where most of the program's performance
+comes from.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[node distance=1.1cm]
+    \node[blk] (src) {Java source\\\texttt{.java}};
+    \node[blk, right=1.3cm of src] (javac) {\texttt{javac}};
+    \node[blk, right=1.3cm of javac] (bc) {Bytecode\\\texttt{.class}};
+    \node[blk, right=1.6cm of bc, yshift=0.55cm, minimum width=2.7cm] (interp) {Interpreter};
+    \node[blk, below=0.35cm of interp, minimum width=2.7cm] (jit) {JIT compiler(s)};
+    \node[draw, dashed, rounded corners=3pt, inner sep=7pt, fit=(interp)(jit),
+          label={[font=\small]above:JVM}] (jvm) {};
+    \node[blk, right=1.0cm of jvm] (out) {Program\\output};
+    \draw[arr] (src) -- (javac);
+    \draw[arr] (javac) -- (bc);
+    \draw[arr] (bc) -- (jvm.west);
+    \draw[arr] (jvm) -- (out);
+    \draw[densely dashed, gray] ($(bc.east)!0.5!(jvm.west) + (0,1.6)$) -- ++(0,-3.2);
+    \node[font=\small\itshape, gray] at ($(javac) + (0,1.45)$) {Static};
+    \node[font=\small\itshape, gray] at ($(jvm.north) + (0,0.85)$) {Dynamic};
+  \end{tikzpicture}
+  \caption{Java execution pipeline. \texttt{javac} produces bytecode statically; the JVM's
+           interpreter and JIT compiler execute it dynamically.}
+  \label{fig:pipeline}
+\end{figure}
+
+This split is central to the rest of the report. Analyses can be performed either statically,
+where time is plentiful but the final program (its libraries, its dynamically loaded classes) is
+not fully known, or during JIT compilation, where the running program is known exactly but every
+millisecond spent analysing it is added to the program's execution time.
+
+\section{Java Memory Management}
+
+By default, Java allocates every object on the heap. The heap is owned and managed by the
+garbage collector, which dictates how memory is structured and handles both the allocation and
+the deallocation of objects.
+
+\paragraph{Benefits.} Automatic memory management eliminates manual allocation and
+deallocation, and with it a whole class of memory bugs such as dangling pointers, double frees
+and many memory leaks.
+
+\paragraph{Costs.} Every heap object is reached through a reference, so accesses pay for an
+extra indirection, and the garbage collector adds its own performance overhead: it must trace
+live objects, reclaim dead ones, and in many designs pause the application while doing so.
+
+\section{Stack Allocation via Escape Analysis}
+
+The JIT compiler can reduce these costs with \emph{escape analysis}.
+Escape analysis determines the set of objects that do not \emph{escape} their allocating method,
+that is, objects that are never stored into a location reachable after the method returns (a
+static field, a heap object, the return value, or an argument of an unknown callee). Such
+objects can be allocated on the method's stack frame instead of the heap. Stack-allocated
+objects:
+\begin{itemize}
+  \item have a lower access time, since they live in the frame of the method using them; and
+  \item are freed as soon as the allocating method returns, without any work from the garbage
+        collector.
+\end{itemize}
+
+\paragraph{Limitations in OpenJ9.} OpenJ9's JIT compiler performs escape analysis and stack
+allocation, but with two important limitations:
+\begin{itemize}
+  \item it is triggered only at the hotter optimization levels, so methods that are compiled
+        only at lower levels never benefit from it; and
+  \item it is intraprocedural, with a limited ability to ``peek'' into callees. Any call it
+        cannot see through must be treated conservatively, which makes the analysis imprecise.
+\end{itemize}
+
+\section{Precision Challenges in Both Realms}
+\label{sec:challenges}
+
+A natural idea is to compute escape information more precisely. Doing so is hard in both stages
+of the pipeline.
+
+\paragraph{Challenges with JIT analysis.} The time spent in JIT compilation is added to the
+execution time of the program. JIT compilers therefore trade precision for efficiency: they use
+fast, local analyses rather than expensive whole-program ones.
+
+\paragraph{Challenges with static analysis.} A static analysis can afford to be expensive, but it
+faces two problems of its own:
+\begin{itemize}
+  \item a precise whole-program analysis needs the code of library methods, which may not be
+        available (or may differ) when the application is compiled; and
+  \item an object that the static analysis marks as stack-allocatable might still escape at run
+        time, because of dynamic language features such as \emph{dynamic class loading},
+        \emph{hot-code replacement}, and \emph{callbacks} into application code.
+\end{itemize}
+
+The work surveyed in Chapter~\ref{ch:literature} addresses both sets of challenges by splitting
+the analysis between the static compiler and the JIT compiler.
+
+\section{Organization of this Report}
+
+Chapter~\ref{ch:literature} surveys two staged static\,+\,JIT approaches: the PYE framework and
+optimistic stack allocation with dynamic heapification. Chapter~\ref{ch:toolbox} describes the
+tools we use: the Soot analysis framework and OpenJ9's debug counters.
+Chapter~\ref{ch:experiments} presents two experiments on OpenJ9, one on how well the stack-frame
+budget for stack-allocated objects is used and one on why arrays are rarely stack allocated.
+Chapter~\ref{ch:conclusion} concludes and outlines future research directions.

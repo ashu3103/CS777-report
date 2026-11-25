@@ -1,0 +1,143 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\providecommand \oddpage@label [2]{}
+\@writefile{toc}{\contentsline {section}{Abstract}{1}{chapter*.1}\protected@file@percent }
+\citation{openj9}
+\@writefile{toc}{\contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{loa}{\addvspace {10\p@ }}
+\@writefile{toc}{\contentsline {section}{\numberline {1.1}Java Execution Pipeline}{1}{section.1.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1.1}{\ignorespaces Java execution pipeline. \texttt  {javac} produces bytecode statically; the JVM's interpreter and JIT compiler execute it dynamically.}}{1}{figure.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:pipeline}{{1.1}{1}{Java execution pipeline. \texttt {javac} produces bytecode statically; the JVM's interpreter and JIT compiler execute it dynamically}{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {1.2}Java Memory Management}{2}{section.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Benefits.}{2}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Costs.}{2}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1.3}Stack Allocation via Escape Analysis}{2}{section.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Limitations in OpenJ9.}{2}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1.4}Precision Challenges in Both Realms}{2}{section.1.4}\protected@file@percent }
+\newlabel{sec:challenges}{{1.4}{2}{Precision Challenges in Both Realms}{section.1.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Challenges with JIT analysis.}{2}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Challenges with static analysis.}{2}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1.5}Organization of this Report}{3}{section.1.5}\protected@file@percent }
+\citation{thakur2019pye}
+\citation{thakur2019pye}
+\citation{thakur2019pye}
+\@writefile{toc}{\contentsline {chapter}{\numberline {2}Literature Survey}{4}{chapter.2}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{loa}{\addvspace {10\p@ }}
+\newlabel{ch:literature}{{2}{4}{Literature Survey}{chapter.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2.1}The PYE Framework}{4}{section.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1.1}Architecture}{4}{subsection.2.1.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.1}{\ignorespaces Architecture of PYE (adapted from~\cite  {thakur2019pye}). The static side writes partial summaries to \texttt  {.res} files; the JIT side combines them with library summaries to obtain final results.}}{4}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:pye}{{2.1}{4}{Architecture of PYE (adapted from~\cite {thakur2019pye}). The static side writes partial summaries to \texttt {.res} files; the JIT side combines them with library summaries to obtain final results}{figure.caption.8}{}}
+\citation{anand2024optimistic}
+\@writefile{toc}{\contentsline {paragraph}{Static compiler + partial analyzer.}{5}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{JIT compiler + fast-precise analyzer.}{5}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1.2}Conditional Values}{5}{subsection.2.1.2}\protected@file@percent }
+\newlabel{lst:cv}{{2.1}{5}{Example for conditional values}{lstlisting.2.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {2.1}{\ignorespaces Example for conditional values.}}{5}{lstlisting.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.2}Optimistic Stack Allocation and Dynamic Heapification}{5}{section.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2.1}Optimistic Stack Allocation}{6}{subsection.2.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Static escape analysis (offline).}{6}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Passing results to the runtime.}{6}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{OpenJ9 JIT integration.}{6}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2.2}Motivating Example}{6}{subsection.2.2.2}\protected@file@percent }
+\newlabel{lst:heapify}{{2.2}{7}{Dynamic class loading invalidates a static escape result}{lstlisting.2.2}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {2.2}{\ignorespaces Dynamic class loading invalidates a static escape result.}}{7}{lstlisting.2.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.2}{\ignorespaces Points-to graph of \texttt  {foo} from Listing~\ref {lst:heapify}. The dotted box is the caller's object referenced by \texttt  {q}.}}{7}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:pts}{{2.2}{7}{Points-to graph of \texttt {foo} from Listing~\ref {lst:heapify}. The dotted box is the caller's object referenced by \texttt {q}}{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2.3}Dynamic Heapification}{7}{subsection.2.2.3}\protected@file@percent }
+\citation{thakur2019pye}
+\citation{thakur2019pye}
+\citation{blackburn2025rethinking}
+\citation{blackburn2006dacapo}
+\citation{specjvm2008}
+\citation{anand2024optimistic}
+\citation{anand2024optimistic}
+\@writefile{lof}{\contentsline {figure}{\numberline {2.3}{\ignorespaces Architecture of PYE (adapted from~\cite  {thakur2019pye}). The static side writes partial summaries to \texttt  {.res} files; the JIT side combines them with library summaries to obtain final results.}}{8}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:pye}{{2.3}{8}{Architecture of PYE (adapted from~\cite {thakur2019pye}). The static side writes partial summaries to \texttt {.res} files; the JIT side combines them with library summaries to obtain final results}{figure.caption.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2.4}Evaluation}{8}{subsection.2.2.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2.1}{\ignorespaces Results reported by Anand et al.~\cite  {anand2024optimistic}. More stack allocation means fewer heap allocations, which lowers GC time and overall execution time.}}{8}{table.caption.16}\protected@file@percent }
+\newlabel{tab:anand-eval}{{2.1}{8}{Results reported by Anand et al.~\cite {anand2024optimistic}. More stack allocation means fewer heap allocations, which lowers GC time and overall execution time}{table.caption.16}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2.3}Discussion}{8}{section.2.3}\protected@file@percent }
+\citation{vallee2010soot}
+\citation{anand2024optimistic}
+\citation{thakur2019pye}
+\@writefile{toc}{\contentsline {chapter}{\numberline {3}Our Toolbox}{10}{chapter.3}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{loa}{\addvspace {10\p@ }}
+\newlabel{ch:toolbox}{{3}{10}{Our Toolbox}{chapter.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.1}Soot}{10}{section.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Data-flow analysis framework.}{10}{section*.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.1}Why a Three-Address Code?}{10}{subsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.2}OpenJ9 Debug Counters}{10}{section.3.2}\protected@file@percent }
+\newlabel{lst:dbg}{{3.1}{11}{Counting inlined and non-inlined call sites}{lstlisting.3.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {3.1}{\ignorespaces Counting inlined and non-inlined call sites.}}{11}{lstlisting.3.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces Output produced by the counters in Listing~\ref {lst:dbg}.}}{11}{table.caption.18}\protected@file@percent }
+\newlabel{tab:dbg}{{3.1}{11}{Output produced by the counters in Listing~\ref {lst:dbg}}{table.caption.18}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {4}Experiments}{12}{chapter.4}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{loa}{\addvspace {10\p@ }}
+\newlabel{ch:experiments}{{4}{12}{Experiments}{chapter.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.1}Investigating Stack-Frame Utilization}{12}{section.4.1}\protected@file@percent }
+\@writefile{loa}{\contentsline {algocf}{\numberline {1}{\ignorespaces Candidate eviction in OpenJ9 (size-based)}}{12}{algocf.1}\protected@file@percent }
+\newlabel{alg:evict}{{1}{12}{Investigating Stack-Frame Utilization}{algocf.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1.1}Candidate Eviction: An Example}{12}{subsection.4.1.1}\protected@file@percent }
+\citation{blackburn2006dacapo}
+\newlabel{lst:evict}{{4.1}{13}{A method whose candidates exceed the budget}{lstlisting.4.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {4.1}{\ignorespaces A method whose candidates exceed the budget.}}{13}{lstlisting.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces Effect of two eviction rules on the method in Listing~\ref {lst:evict}.}}{13}{table.caption.20}\protected@file@percent }
+\newlabel{tab:evict}{{4.1}{13}{Effect of two eviction rules on the method in Listing~\ref {lst:evict}}{table.caption.20}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.2}Experiment 1: Stack-Frame Utilization}{13}{section.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Objective.}{13}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{What we measure.}{13}{section*.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{How.}{13}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Workload.}{13}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2.1}Results}{13}{subsection.4.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.1}{\ignorespaces Stack-frame utilization per compiled method. Each point is one method: the share of its 3000\,B budget used by stack-allocated objects. Box: middle 50\% of methods; line: median; whiskers: typical range; circles: outlier methods.}}{14}{figure.caption.25}\protected@file@percent }
+\newlabel{fig:util}{{4.1}{14}{Stack-frame utilization per compiled method. Each point is one method: the share of its 3000\,B budget used by stack-allocated objects. Box: middle 50\% of methods; line: median; whiskers: typical range; circles: outlier methods}{figure.caption.25}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.3}Array Stack-Allocation Opportunities}{14}{section.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.1}Eligibility of Arrays}{14}{subsection.4.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Element class unresolved or unknown.}{14}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Array size.}{15}{section*.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.4}Experiment 2: Why Arrays Are Rejected}{15}{section.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Objective.}{15}{section*.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{What we measure.}{15}{section*.29}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{How.}{15}{section*.30}\protected@file@percent }
+\newlabel{lst:h2counters}{{4.2}{15}{Static debug counters for h2}{lstlisting.4.2}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {4.2}{\ignorespaces Static debug counters for h2.}}{15}{lstlisting.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Workload.}{15}{section*.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.1}Results}{15}{subsection.4.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.2}{\ignorespaces Array allocations in compiled methods of the DaCapo 9.12-MR1 benchmarks.}}{16}{table.caption.32}\protected@file@percent }
+\newlabel{tab:arrays}{{4.2}{16}{Array allocations in compiled methods of the DaCapo 9.12-MR1 benchmarks}{table.caption.32}{}}
+\@writefile{toc}{\contentsline {paragraph}{Candidates are rarely stack allocated.}{16}{section*.33}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2}{\ignorespaces Stack allocation of candidate arrays. Left: candidate arrays per benchmark, split into heap and stack allocated (the stack-allocated part is too small to be visible). Right: the share of candidates that is stack allocated.}}{16}{figure.caption.34}\protected@file@percent }
+\newlabel{fig:stackarrays}{{4.2}{16}{Stack allocation of candidate arrays. Left: candidate arrays per benchmark, split into heap and stack allocated (the stack-allocated part is too small to be visible). Right: the share of candidates that is stack allocated}{figure.caption.34}{}}
+\@writefile{toc}{\contentsline {paragraph}{Dynamic size dominates the rejections.}{16}{section*.35}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.2}Discussion}{16}{subsection.4.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.3}{\ignorespaces Reasons why array allocations are rejected as stack-allocation candidates; $n$ is the number of rejected arrays in each benchmark.}}{17}{figure.caption.36}\protected@file@percent }
+\newlabel{fig:reasons}{{4.3}{17}{Reasons why array allocations are rejected as stack-allocation candidates; $n$ is the number of rejected arrays in each benchmark}{figure.caption.36}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {5}Conclusion and Future Work}{18}{chapter.5}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{loa}{\addvspace {10\p@ }}
+\newlabel{ch:conclusion}{{5}{18}{Conclusion and Future Work}{chapter.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.1}Future Work}{18}{section.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Arrays of dynamic size (78.7\% of rejections).}{18}{section*.37}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Large arrays.}{18}{section*.38}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The candidate-to-stack gap.}{18}{section*.39}\protected@file@percent }
+\bibcite{anand2024optimistic}{1}
+\bibcite{blackburn2006dacapo}{2}
+\bibcite{openj9}{3}
+\bibcite{specjvm2008}{4}
+\bibcite{thakur2019pye}{5}
+\bibcite{vallee2010soot}{6}
+\@writefile{toc}{\contentsline {chapter}{References}{19}{chapter*.40}\protected@file@percent }
+\gdef \@abspage@last{22}
